@@ -57,9 +57,9 @@
 //          | |                 |
 //          --|RST              |
 //            |                 |
-//            |     P3.3/UCA1TXD|------------>
+//            |     P3.3/UCA0TXD|------------>
 //            |                 | 9600 - 8N1
-//            |     P3.4/UCA1RXD|<------------
+//            |     P3.4/UCA0RXD|<------------
 //
 //   Bhargavi Nisarga
 //   Texas Instruments Inc.
@@ -84,10 +84,10 @@ void TimerA0Setup()                          // All initial settings for TimerA0
     TA0CCTL1 |= CCIE;                   // Capture/Compare enable on Timer1 CCR0
     TA0CCTL2 |= CCIE;
     TA0CCTL3 |= CCIE;
-    TA0CCR0 = 256;                        // Set Capture/Compare register to 255
-    TA0CCR1 = 250;
-    TA0CCR2 = 0;
-    TA0CCR3 = 0;
+    TA0CCR0 = 270;                        // Set Capture/Compare register to 255
+    TA0CCR1 = 0; // 1.8
+    TA0CCR2 = 0; // 2.3
+    TA0CCR3 = 0; // 2.7
 }
 int main(void)
 {
@@ -95,16 +95,7 @@ int main(void)
     //    UCSCTL4 = SELA_1;                               // ACLK (10kHz)
     LEDSetup();                                     // Function for LED setup
     TimerA0Setup();                                 // Function for Timer0 setup
-    P4SEL |= BIT4 + BIT5;
-    //P4DIR |= BIT7;
     P3SEL |= BIT3 + BIT4;                       // P3.3,4 = USCI_A1 TXD/RXD
-    UCA1CTL1 |= UCSWRST;                      // **Put state machine in reset**
-    UCA1CTL1 |= UCSSEL_2;                     // SMCLK
-    UCA1BR0 = 6;                            // 1MHz 9600 (see User's Guide)
-    UCA1BR1 = 0;                              // 1MHz 9600
-    UCA1MCTL |= UCBRS_0 + UCBRF_13 + UCOS16;   // Modulation UCBRSx=1, UCBRFx=0
-    UCA1CTL1 &= ~UCSWRST;                   // **Initialize USCI state machine**
-    UCA1IE |= UCRXIE;                         // Enable USCI_A1 RX interrupt
 
     UCA0CTL1 |= UCSWRST;                      // **Put state machine in reset**
     UCA0CTL1 |= UCSSEL_2;                     // SMCLK
@@ -114,9 +105,8 @@ int main(void)
     UCA0CTL1 &= ~UCSWRST;                   // **Initialize USCI state machine**
     UCA0IE |= UCRXIE;                         // Enable USCI_A1 RX interrupt
 
-    __bis_SR_register(LPM1_bits + GIE);       // Enter LPM0, interrupts enabled
-    while (1)
-        ;
+    __bis_SR_register(GIE);       // Enter LPM0, interrupts enabled
+    while (1);
 }
 
 #pragma vector = TIMER0_A0_VECTOR                   // Detects interrupt for CCR0 on Timer1
@@ -128,7 +118,6 @@ __interrupt void Timer_A00(void)
         P1OUT &= ~BIT3;
     if (TA0CCR3)
         P1OUT &= ~BIT4;
-
 }
 
 #pragma vector = TIMER0_A1_VECTOR                   // Detects interrupt for CCR1 on Timer1
@@ -150,39 +139,39 @@ __interrupt void Timer_A01(void)
     }
 }
 
-#pragma vector=USCI_A1_VECTOR
-__interrupt void USCI_A1_ISR(void)
+#pragma vector=USCI_A0_VECTOR
+__interrupt void USCI_A0_ISR(void)
 {
 
-    switch (__even_in_range(UCA1IV, 4))
+    switch (__even_in_range(UCA0IV, 4))
     {
     case 0:
         break;                             // Vector 0 - no interrupt
     case 2:                                   // Vector 2 - RXIFG
-        while (!(UCA1IFG & UCTXIFG))
+        while (!(UCA0IFG & UCTXIFG))
             ;  // USCI_A1 TX buffer ready?
         P4OUT ^= BIT7;
         switch (state)
         {
         case 1: //length byte
-            i = UCA1RXBUF; //store given length
+            i = UCA0RXBUF; //store given length
             i--; //decrement length
-            UCA0TXBUF = UCA1RXBUF - 3; //send length minus 3
+            UCA0TXBUF = UCA0RXBUF - 3; //send length minus 3
             state = 2; //change state to 2
             P4OUT ^= BIT7;
             break;
         case 2: //red byte
-            TA0CCR1 = UCA1RXBUF; //store red byte in CCR0
+            TA0CCR1 = UCA0RXBUF; //store red byte in CCR0
             i--;
             state = 3;
             break;
         case 3: //green byte
-            TA0CCR2 = UCA1RXBUF; //store green byte in CCR1
+            TA0CCR2 = UCA0RXBUF; //store green byte in CCR1
             i--;
             state = 4;
             break;
         case 4: //blue byte
-            TA0CCR3 = UCA1RXBUF; //store blue byte in CCR2
+            TA0CCR3 = UCA0RXBUF; //store blue byte in CCR2
             i--;
             state = 5;
             break;
@@ -194,7 +183,7 @@ __interrupt void USCI_A1_ISR(void)
             }
             else
             {
-                UCA0TXBUF = UCA1RXBUF;
+                UCA0TXBUF = UCA0RXBUF;
                 i--;
             }
             break;
