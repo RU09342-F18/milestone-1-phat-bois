@@ -58,7 +58,7 @@
 //          --|RST              |
 //            |                 |
 //            |     P3.3/UCA1TXD|------------>
-//            |                 | 115200 - 8N1
+//            |                 | 9600 - 8N1
 //            |     P3.4/UCA1RXD|<------------
 //
 //   Bhargavi Nisarga
@@ -70,22 +70,22 @@
 unsigned char state = 1;
 unsigned char i;
 
-void LEDSetup()                                     // All initial settings for LED use
+void LEDSetup()                              // All initial settings for LED use
 {
-    P6DIR |= BIT0;                                  // Set P6.0 to output - R LED
-    P6DIR |= BIT1;                                  // Set P6.1 to output - G LED
-    P6DIR |= BIT2;                                  // Set P6.2 to output - B LED
+    P1DIR |= BIT2;                                 // Set P6.0 to output - R LED
+    P1DIR |= BIT3;                                 // Set P6.1 to output - G LED
+    P1DIR |= BIT4;                                 // Set P6.2 to output - B LED
 }
 
-void TimerA0Setup()                                 // All initial settings for TimerA0
+void TimerA0Setup()                          // All initial settings for TimerA0
 {
-    TA0CTL = TASSEL_2 + MC_1 + TAIE + ID_2;                // Set Timer A0 in Up Mode , counter clear, and interrupt enabled
-    TA0CCTL0 |= CCIE;                               // Capture/Compare enable on Timer1 CCR1
-    TA0CCTL1 |= CCIE;                               // Capture/Compare enable on Timer1 CCR0
+    TA0CTL = TASSEL_2 + MC_1 + TAIE + ID_2; // Set Timer A0 in Up Mode , counter clear, and interrupt enabled
+    TA0CCTL0 |= CCIE;                   // Capture/Compare enable on Timer1 CCR1
+    TA0CCTL1 |= CCIE;                   // Capture/Compare enable on Timer1 CCR0
     TA0CCTL2 |= CCIE;
     TA0CCTL3 |= CCIE;
-    TA0CCR0 = 255;                                  // Set Capture/Compare register to 255
-    TA0CCR1 = 0;
+    TA0CCR0 = 256;                        // Set Capture/Compare register to 255
+    TA0CCR1 = 255;
     TA0CCR2 = 0;
     TA0CCR3 = 0;
 }
@@ -106,38 +106,38 @@ int main(void)
     UCA1CTL1 &= ~UCSWRST;                   // **Initialize USCI state machine**
     UCA1IE |= UCRXIE;                         // Enable USCI_A1 RX interrupt
     __bis_SR_register(LPM4_bits + GIE);       // Enter LPM0, interrupts enabled
-    while(1);                        // For debugger
-
+    while (1);
 }
 
-
-/*
 #pragma vector = TIMER0_A0_VECTOR                   // Detects interrupt for CCR0 on Timer1
 __interrupt void Timer_A00(void)
 {
-    P1OUT |= BIT0;                              // Turns the LED on
-    P4OUT |= BIT7;
+    if (TA0CCR1)
+        P1OUT &= ~BIT2;                              // Turns the LED on
+    if (TA0CCR2)
+        P1OUT &= ~BIT3;
+    if (TA0CCR3)
+    P1OUT &= ~BIT4;
+
 }
-*/
+
 
 #pragma vector = TIMER0_A1_VECTOR                   // Detects interrupt for CCR1 on Timer1
 __interrupt void Timer_A01(void)
 {
     switch (TA0IV)
     {
-    case TA0IV_TACCR1:                    // Checks the interrupt vector to determine if CCR1 was triggered
-        P6OUT &= ~BIT0;                             // Turns the LED off
+        case TA0IV_TACCR1: // Checks the interrupt vector to determine if CCR1 was triggered
+        P1OUT |= BIT2;// Turns the LED off
         break;
-    case TA0IV_TACCR2:                      // Checks the interrupt vector to determine if CCR2 was triggered
-        P6OUT &= ~BIT1;                             // Turns the LED off
+        case TA0IV_TACCR2:// Checks the interrupt vector to determine if CCR2 was triggered
+        P1OUT |= BIT3;// Turns the LED off
         break;
-    case TA0IV_TACCR3:
-        P6OUT &= ~BIT2;
+        case TA0IV_TACCR3:
+        P1OUT |= BIT4;
         break;
-    default:
+        default:
         break;
-  //  if (TA0IV == TA0IV_TACCR1)                      // Checks the interrupt vector to determine if CCR1 was triggered
-    //    P1OUT &= ~BIT0;                             // Turns the LED off
     }
 }
 
@@ -187,7 +187,8 @@ __interrupt void USCI_A1_ISR(void)
                 i--;
             }
             break;
-        default:break;
+        default:
+            break;
         }
 
         P4OUT ^= BIT7;
