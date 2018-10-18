@@ -70,130 +70,126 @@
 unsigned char state = 1;
 unsigned char i;
 
-void LEDSetup()                              // All initial settings for LED use
+void LEDSetup()                                 // All initial settings for LED use
 {
-    P1DIR |= BIT2;                                 // Set P6.0 to output - R LED
-    P1DIR |= BIT3;                                 // Set P6.1 to output - G LED
-    P1DIR |= BIT4;                                 // Set P6.2 to output - B LED
+    P1DIR |= BIT2;                              // Set P6.0 to output - R LED - 1.8V
+    P1DIR |= BIT3;                              // Set P6.1 to output - G LED - 2.3V
+    P1DIR |= BIT4;                              // Set P6.2 to output - B LED - 2.7V
 }
 
-void TimerA0Setup()                          // All initial settings for TimerA0
+void TimerA0Setup()                             // All initial settings for TimerA0
 {
-    TA0CTL = TASSEL_2 + MC_1 + TAIE; // Set Timer A0 in Up Mode , counter clear, and interrupt enabled
-    TA0CCTL0 |= CCIE;                   // Capture/Compare enable on Timer1 CCR1
-    TA0CCTL1 |= CCIE;                   // Capture/Compare enable on Timer1 CCR0
-    TA0CCTL2 |= CCIE;
-    TA0CCTL3 |= CCIE;
-    TA0CCR0 = 270;                        // Set Capture/Compare register to 255
-    TA0CCR1 = 0; // 1.8
-    TA0CCR2 = 0; // 2.3
-    TA0CCR3 = 0; // 2.7
+    TA0CTL = TASSEL_2 + MC_1 + TAIE;            // Set Timer A0 in Up Mode , counter clear, and interrupt enabled
+    TA0CCTL0 |= CCIE;                           // Capture/Compare enable on Timer0 CCR0
+    TA0CCTL1 |= CCIE;                           // Capture/Compare enable on Timer0 CCR1
+    TA0CCTL2 |= CCIE;                           // Capture/Compare enable on Timer0 CCR2
+    TA0CCTL3 |= CCIE;                           // Capture/Compare enable on Timer0 CCR3
+    TA0CCR0 = 270;                              // Set Capture/Compare register CCR0 to 270
+    TA0CCR1 = 0;                                // Set Capture/Compare register CCR1 to 0
+    TA0CCR2 = 0;                                // Set Capture/Compare register CCR2 to 0
+    TA0CCR3 = 0;                                // Set Capture/Compare register CCR3 to 0
 }
 int main(void)
 {
-    WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
-    //    UCSCTL4 = SELA_1;                               // ACLK (10kHz)
-    LEDSetup();                                     // Function for LED setup
-    TimerA0Setup();                                 // Function for Timer0 setup
-    P3SEL |= BIT3 + BIT4;                       // P3.3,4 = USCI_A1 TXD/RXD
+    WDTCTL = WDTPW + WDTHOLD;                   // Stop WDT
+    LEDSetup();                                 // Function for LED setup
+    TimerA0Setup();                             // Function for Timer0 setup
+    P3SEL |= BIT3 + BIT4;                       // P3.3,4 = USCI_A0 TXD/RXD
 
-    UCA0CTL1 |= UCSWRST;                      // **Put state machine in reset**
-    UCA0CTL1 |= UCSSEL_2;                     // SMCLK
-    UCA0BR0 = 6;                            // 1MHz 9600 (see User's Guide)
-    UCA0BR1 = 0;                              // 1MHz 9600
-    UCA0MCTL |= UCBRS_0 + UCBRF_13 + UCOS16;   // Modulation UCBRSx=1, UCBRFx=0
-    UCA0CTL1 &= ~UCSWRST;                   // **Initialize USCI state machine**
-    UCA0IE |= UCRXIE;                         // Enable USCI_A1 RX interrupt
+    UCA0CTL1 |= UCSWRST;                        // **Put state machine in reset**
+    UCA0CTL1 |= UCSSEL_2;                       // SMCLK
+    UCA0BR0 = 6;                                // 1MHz 9600 (see User's Guide)
+    UCA0BR1 = 0;                                // 1MHz 9600
+    UCA0MCTL |= UCBRS_0 + UCBRF_13 + UCOS16;    // Modulation UCBRSx=1, UCBRFx=0
+    UCA0CTL1 &= ~UCSWRST;                       // **Initialize USCI state machine**
+    UCA0IE |= UCRXIE;                           // Enable USCI_A0 RX interrupt
 
-    __bis_SR_register(GIE);       // Enter LPM0, interrupts enabled
+    __bis_SR_register(GIE);                     // Interrupts enabled
     while (1);
 }
 
-#pragma vector = TIMER0_A0_VECTOR                   // Detects interrupt for CCR0 on Timer1
+#pragma vector = TIMER0_A0_VECTOR               // Detects interrupt for CCR0 on Timer0
 __interrupt void Timer_A00(void)
 {
-    if (TA0CCR1)
-        P1OUT &= ~BIT2;                              // Turns the LED on
-    if (TA0CCR2)
-        P1OUT &= ~BIT3;
-    if (TA0CCR3)
-        P1OUT &= ~BIT4;
+    if (TA0CCR1)                                // When the CCR1 is not 0
+        P1OUT &= ~BIT2;                         // Turns the Red LED on
+    if (TA0CCR2)                                // When the CCR2 is not 0
+        P1OUT &= ~BIT3;                         // Turns the Green LED on
+    if (TA0CCR3)                                // When the CCR3 is not 0
+        P1OUT &= ~BIT4;                         // Turns the Blue LED on
 }
 
-#pragma vector = TIMER0_A1_VECTOR                   // Detects interrupt for CCR1 on Timer1
+#pragma vector = TIMER0_A1_VECTOR               // Detects interrupt for CCR1-3 on Timer0
 __interrupt void Timer_A01(void)
 {
-    switch (TA0IV)
+    switch (TA0IV)                              // Checks interrupt vector against different cases
     {
-    case TA0IV_TACCR1: // Checks the interrupt vector to determine if CCR1 was triggered
-        P1OUT |= BIT2; // Turns the LED off
+    case TA0IV_TACCR1:                          // Checks the interrupt vector to determine if CCR1 was triggered
+        P1OUT |= BIT2;                          // Turns the Red LED off
         break;
-    case TA0IV_TACCR2: // Checks the interrupt vector to determine if CCR2 was triggered
-        P1OUT |= BIT3; // Turns the LED off
+    case TA0IV_TACCR2:                          // Checks the interrupt vector to determine if CCR2 was triggered
+        P1OUT |= BIT3;                          // Turns the Green LED off
         break;
-    case TA0IV_TACCR3:
-        P1OUT |= BIT4;
+    case TA0IV_TACCR3:                          // Checks the interrupt vector to determine if CCR3 was triggered
+        P1OUT |= BIT4;                          // Turns the Blue LED off
         break;
     default:
         break;
     }
 }
 
-#pragma vector=USCI_A0_VECTOR
+#pragma vector=USCI_A0_VECTOR                   // Detects interrupt for UART
 __interrupt void USCI_A0_ISR(void)
 {
 
     switch (__even_in_range(UCA0IV, 4))
     {
-    case 0:
-        break;                             // Vector 0 - no interrupt
-    case 2:                                   // Vector 2 - RXIFG
-        while (!(UCA0IFG & UCTXIFG))
-            ;  // USCI_A1 TX buffer ready?
-        P4OUT ^= BIT7;
-        switch (state)
-        {
-        case 1: //length byte
-            i = UCA0RXBUF; //store given length
-            i--; //decrement length
-            UCA0TXBUF = UCA0RXBUF - 3; //send length minus 3
-            state = 2; //change state to 2
-            P4OUT ^= BIT7;
-            break;
-        case 2: //red byte
-            TA0CCR1 = UCA0RXBUF; //store red byte in CCR0
-            i--;
-            state = 3;
-            break;
-        case 3: //green byte
-            TA0CCR2 = UCA0RXBUF; //store green byte in CCR1
-            i--;
-            state = 4;
-            break;
-        case 4: //blue byte
-            TA0CCR3 = UCA0RXBUF; //store blue byte in CCR2
-            i--;
-            state = 5;
-            break;
-        case 5: //blue byte
-            if (i == 1)
-            { //if
-                UCA0TXBUF = 0x0D;
-                state = 1;
-            }
-            else
+    case 0:                                     // Vector 0 - no interrupt
+        break;
+    case 2:                                     // Vector 2 - RXIFG
+        while (!(UCA0IFG & UCTXIFG));           // USCI_A1 TX buffer ready?
+            switch (state)
             {
-                UCA0TXBUF = UCA0RXBUF;
-                i--;
+            case 1:                             // Length state
+                i = UCA0RXBUF;                  // Store given length
+                if(i >= 5 & i != 0x0D)          // Check if packet is long enough and not the end character
+                    state = 2;                  // Change to Red LED state
+                i--;                            // Decrement length
+                UCA0TXBUF = UCA0RXBUF - 3;      // Send length minus 3
+                break;
+            case 2:                             // Red LED
+                TA0CCR1 = UCA0RXBUF;            // Store red byte in CCR1
+                i--;                            // Decrement length
+                state = 3;                      // Change to Green LED state
+                break;
+            case 3:                             // Green LED
+                TA0CCR2 = UCA0RXBUF;            // Store green byte in CCR2
+                i--;                            // Decrement length
+                state = 4;                      // Change to Blue LED state
+                break;
+            case 4:                             // Blue LED
+                TA0CCR3 = UCA0RXBUF;            // Store blue byte in CCR3
+                i--;                            // Decrement length
+                state = 5;                      // Change to Transmit state
+                break;
+            case 5:                             // Transmit
+                if (i == 1)                     // Check if end of packet
+                {
+                    UCA0TXBUF = 0x0D;           // Send end character
+                    state = 1;                  // Return to Length state
+                }
+                else                            // Not end of packet
+                {
+                    UCA0TXBUF = UCA0RXBUF;      // Transmit remaining RGB bytes
+                    i--;                        // Decrement length
+                }
+                break;
+            default:
+                break;
             }
-            break;
-        default:
-            break;
-        }
-
         break;
     case 4:
-        break;                             // Vector 4 - TXIFG
+        break;                                  // Vector 4 - TXIFG
     default:
         break;
     }
