@@ -1,6 +1,5 @@
-# Milestone 1: Communicating with Will Byers
-
-Milestone 1 by Alex Marino and Cameron Bendzynski 
+Milestone 1: Communicating with Will Byers
+Milestone 1 by Alex Marino and Cameron Bendzynski
 Embedded Systems Section 3
 Due by October 18, 2018
 Created October 14, 2018
